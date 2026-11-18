@@ -1,25 +1,39 @@
-# Premios de Fin de Año Grupo Garnier 2026
+# Premios de Fin de Año 2026 · Loymark Bogotá
 
-Versión de consulta de la app de premios de Talento Humano, publicada en GitHub Pages.
+- **Participantes:** `https://alexandra26-stack.github.io/Premios-grupogarnier/`
+  Entran con su correo corporativo. Proponen, votan y ven a los ganadores.
+- **Talento Humano:** `https://alexandra26-stack.github.io/Premios-grupogarnier/admin/`
+  Pide la clave de admin. Desde ahí se ve la participación, se publican los finalistas, se revelan los ganadores y se ajustan equipo, categorías y fechas.
 
-## Seguridad
+Los datos se guardan solos en una hoja de Google Sheets que crea el script. No hace falta abrirla ni editarla.
 
-- `index.html` está **cifrado con AES-256-GCM**. La clave se deriva de la contraseña con PBKDF2-SHA256 (600.000 iteraciones).
-- Sin la contraseña, ni la página ni el código fuente del repositorio muestran el contenido: solo un bloque cifrado.
-- La versión sin cifrar **no está en el repositorio** y nunca debe subirse (ver `.gitignore`).
-- La página pide a los buscadores que no la indexen (`noindex`).
-- La contraseña se comparte por un canal interno (Teams o correo), nunca en este repositorio.
+## Reglas que valida el servidor
 
-## Votación
+- Solo pueden entrar los correos de la lista del equipo.
+- Nadie puede proponerse ni votarse a sí mismo.
+- Las propuestas y el voto se envían una sola vez y no se pueden cambiar.
+- Pasan 2 finalistas por categoría; solo se puede votar por ellos.
+- Cada persona gana un solo premio.
+- Las acciones de administración piden la clave.
 
-Esta página es una vitrina. Nominaciones y votos se hacen en la app oficial en Claude; lo que se haga aquí queda solo en el navegador de cada persona.
+## Conexión con Google (una sola vez)
 
-## Cambiar la contraseña o actualizar la app
+1. Entra a <https://script.google.com> y crea un **Nuevo proyecto**.
+2. Borra lo que trae y pega todo el contenido de `apps-script/Codigo.gs`.
+3. En la línea `const CLAVE_ADMIN = 'ESCRIBE-AQUI-TU-CLAVE';` escribe tu clave de admin. Guarda.
+4. Arriba, elige la función `instalar` y toca **Ejecutar**. Acepta los permisos (si Google dice que la app no está verificada: *Configuración avanzada → Ir al proyecto*).
+5. Toca **Implementar → Nueva implementación → Aplicación web**.
+   - Ejecutar como: **Yo**
+   - Quién tiene acceso: **Cualquier persona**
+6. Copia la URL que termina en `/exec` y pégala en `assets/comun.js`, en la línea `window.PREMIOS_API = ...`.
 
-Requiere Node.js 18 o superior.
+Si cambias el script después, usa **Implementar → Gestionar implementaciones → Editar → Nueva versión** para que la URL siga siendo la misma.
 
-```bash
-node herramientas/cifrar.mjs ruta/a/app-sin-cifrar.html "NUEVA-CONTRASEÑA" > index.html
-```
+## Archivos
 
-Luego se sube solo el nuevo `index.html`.
+| Archivo | Qué es |
+| --- | --- |
+| `index.html` | Página de participantes |
+| `admin/index.html` | Zona de administración |
+| `assets/` | Estilos, íconos y conexión compartidos |
+| `apps-script/Codigo.gs` | Código del servidor (se pega en Apps Script; no contiene la clave real) |

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin · Premios de Fin de Año 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/estilos.css">
+<style>
+.login { max-width: 460px; justify-self: center; width: 100%; text-align: center; justify-items: center; margin-top: 40px; }
+.login form { display: grid; gap: 12px; width: 100%; }
+.login .inp, .login .btn { border-radius: 999px; text-align: center; }
+.lock { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, var(--pine), #b0283a); color: #fff; }
+.rail .who .link { color: #e8c9a0; margin-top: 6px; display: inline-block; }
+.list { display: grid; gap: 0; }
+.li { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); text-align: left; }
+.li small { display: block; color: var(--muted); }
+.dates { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; text-align: left; }
+.dates fieldset { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; display: grid; gap: 8px; }
+.dates legend { font-weight: 700; color: var(--coal); padding: 0 6px; }
+.addrow { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; text-align: left; }
+.chip.win { background: var(--gold); color: var(--pine-dark); }
+.pend { columns: 3 200px; font-size: 14px; color: var(--muted); text-align: left; }
+.pend span { display: block; padding: 2px 0; }
+.card h3 { margin: 0; }
+@media (max-width: 700px) { .addrow { grid-template-columns: 1fr; } .li { grid-template-columns: auto 1fr; } }
+</style>
+</head>
+<body>
+<aside class="rail">
+  <div class="brand"><div class="mark" aria-hidden="true"><svg viewBox="0 0 40 40" width="40" height="40"><defs><linearGradient id="mk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#de2826"/><stop offset="1" stop-color="#ff7a45"/></linearGradient></defs><circle cx="20" cy="20" r="20" fill="url(#mk)"/><path d="M28 14.5a10 10 0 1 0 1.5 7.5H20.5" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="31" cy="9" r="2.4" fill="#f2b233"/></svg></div><div><b>Grupo Garnier</b><span>Administración</span></div></div>
+  <nav class="nav" role="tablist" id="tabs" aria-label="Secciones"></nav>
+  <div class="who" id="whoBox"></div>
+</aside>
+<main id="main"></main>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="../assets/comun.js"></script>
+<script>
+const TABS = [['resumen', 'Resumen'], ['propuestas', 'Propuestas'], ['votacion', 'Votación'], ['equipo', 'Equipo'], ['categorias', 'Categorías'], ['fechas', 'Fechas']];
+const S = { clave: '', d: null, tab: 'resumen', busy: false, confirm: null };
+try { S.clave = sessionStorage.getItem('premios-admin') || ''; S.tab = sessionStorage.getItem('premios-admin-tab') || 'resumen'; } catch {}
+
+async function adm(accion, datos = {}) { return api(accion, { clave: S.clave, ...datos }); }
+async function cargar() { S.d = await adm('adminDatos'); }
+const catName = id => S.d.categorias.find(c => c.id === id)?.nombre || id;
+
+function renderNav() {
+  $('#tabs').innerHTML = S.d ? TABS.map(([id, n], i) => `<button role="tab" aria-selected="${S.tab === id}" data-tab="${id}"><small>${String(i + 1).padStart(2, '0')}</small>${n}</button>`).join('') : '';
+  $('#whoBox').innerHTML = S.d ? `<em>Talento Humano</em><span>Zona de administración</span><br><a class="link" href="../" target="_blank" rel="noopener">Ver la página de participantes</a><br><button type="button" class="link" data-act="salir">Salir</button>` : '<em>Premios 2026</em><span>Administración</span>';
+}
+
+function loginView(err = '') {
+  return `${err ? `<div class="banner">${esc(err)}</div>` : ''}<section class="card login"><div class="lock" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+    <h3>Zona de administración</h3><p class="sub">Escribe la clave de Talento Humano.</p>
+    <form id="fClave"><label class="sr-only" for="clave">Clave</label><input class="inp" id="clave" type="password" autocomplete="current-password" required>
+    <button class="btn" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Entrando…' : 'Entrar'}</button></form></section>`;
+}
+
+function head(t, sub) { return `<div class="pagehead"><h2>${t}</h2><p class="sub">${sub}</p></div>`; }
+
+const V = {
+  resumen() {
+    const d = S.d, team = d.equipo.filter(p => p.activo), n = team.length;
+    const nom = team.filter(p => d.nominaron[p.correo]), vot = team.filter(p => d.votaron[p.correo]);
+    const pct = x => n ? Math.round(x / n * 100) : 0;
+    const stat = (l, v, note, cls = '') => `<div class="stat"><span class="lab">${l}</span><span class="num ${cls}">${v}</span><span class="note">${note}</span></div>`;
+    const faltan = (arr, k) => arr.filter(p => !d[k][p.correo]).map(p => `<span>${esc(p.nombre)}</span>`).join('') || '<span>Nadie: todos participaron.</span>';
+    return head('Resumen', `Fase actual: ${faseNombre(d.fase)}${d.ajustes.fase !== 'auto' ? ' (forzada manualmente)' : ''}.`) +
+      `<div class="stats">${stat('Participantes', n, 'en la lista')}${stat('Propusieron', nom.length, pct(nom.length) + '% del equipo', 'red')}${stat('Votaron', vot.length, pct(vot.length) + '% del equipo', 'red')}${stat('Ganadores', d.ajustes.revelado ? 'Visibles' : 'Ocultos', d.ajustes.revelado ? 'todos los ven' : 'solo tú los ves')}</div>
+      <section class="card"><h3>Faltan por proponer</h3><div class="pend">${faltan(team, 'nominaron')}</div></section>
+      <section class="card"><h3>Faltan por votar</h3><div class="pend">${faltan(team, 'votaron')}</div></section>
+      <section class="card"><h3>Hoja de datos</h3><p class="sub">Todo se guarda solo. No necesitas abrirla, pero aquí está si quieres descargar los datos.</p><div class="row"><a class="btn ghost" href="${esc(d.urlHoja)}" target="_blank" rel="noopener">Abrir hoja de Google</a></div></section>`;
+  },
+  propuestas() {
+    const d = S.d, fin = d.ajustes.finalistas || {};
+    const blocks = d.categorias.filter(c => c.activa).map(c => {
+      const e = Object.entries(d.nominaciones[c.id] || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'));
+      const max = e[0]?.[1] || 1;
+      return `<div class="res"><div class="row between"><b>${esc(c.nombre)}</b><span class="chip next">${e.reduce((a, x) => a + x[1], 0)} propuestas</span></div>
+        ${e.length ? e.slice(0, 6).map(([p, v], i) => `<div class="bar"><span>${esc(p)}${(fin[c.id] || []).includes(p) ? ' <span class="chip win">Finalista</span>' : ''}</span><div class="track"><div class="fill ${i < 2 ? 'win' : ''}" style="width:${v / max * 100}%"></div></div><span class="n">${v}</span></div>`).join('') : '<p class="sub">Sin propuestas todavía.</p>'}</div>`;
+    }).join('');
+    return head('Propuestas', 'Las 2 personas con más propuestas en cada categoría pasan a la votación.') +
+      `<section class="card"><div class="row between"><div><h3>Finalistas</h3><p class="sub">${d.ajustes.finalistas ? 'Ya publicaste los finalistas. Los participantes los verán cuando abra la votación.' : 'Publícalos cuando cierren las propuestas.'}</p></div>
+      <button class="btn" data-act="publicar">${S.confirm === 'publicar' ? 'Toca otra vez para confirmar' : d.ajustes.finalistas ? 'Volver a calcular finalistas' : 'Publicar finalistas'}</button></div>${blocks}</section>`;
+  },
+  votacion() {
+    const d = S.d, fin = d.ajustes.finalistas;
+    if (!fin) return head('Votación', 'Conteo de votos entre los finalistas.') + `<div class="card"><div class="empty">Primero publica los finalistas en Propuestas.</div></div>`;
+    const { ranking, ganadores } = d.calculo;
+    const blocks = d.categorias.filter(c => c.activa).map(c => {
+      const r = ranking[c.id] || [], max = Math.max(1, ...r.map(x => x.v));
+      return `<div class="res"><div class="row between"><b>${esc(c.nombre)}</b>${ganadores[c.id] ? `<span class="chip win">Gana: ${esc(ganadores[c.id])}</span>` : '<span class="chip next">Sin votos</span>'}</div>
+        ${r.map(x => `<div class="bar"><span>${esc(x.p)}</span><div class="track"><div class="fill ${ganadores[c.id] === x.p ? 'win' : ''}" style="width:${x.v / max * 100}%"></div></div><span class="n">${x.v}</span></div>`).join('')}</div>`;
+    }).join('');
+    return head('Votación', 'Cada persona gana un solo premio: si alguien queda primero en dos categorías, en la otra gana quien sigue.') +
+      `<section class="card"><div class="row between"><div><h3>Ganadores</h3><p class="sub">${d.ajustes.revelado ? 'Visibles para todo el equipo en la pestaña Ganadores.' : 'Ocultos. Revélalos el día de la ceremonia.'}</p></div>
+      <button class="btn" data-act="revelar">${S.confirm === 'revelar' ? 'Toca otra vez para confirmar' : d.ajustes.revelado ? 'Ocultar ganadores' : 'Revelar ganadores'}</button></div>${blocks}</section>`;
+  },
+  equipo() {
+    const d = S.d;
+    return head('Equipo', `${d.equipo.length} personas. Solo estos correos pueden entrar a proponer y votar.`) +
+      `<section class="card"><h3>Agregar persona</h3><form id="fPersona" class="addrow">
+        <label class="f" for="pCorreo">Correo<input class="inp" id="pCorreo" type="email" required placeholder="nombre@loymark.com"></label>
+        <label class="f" for="pNombre">Nombre<input class="inp" id="pNombre" required placeholder="Nombre y apellido"></label>
+        <button class="btn" type="submit">Agregar</button></form></section>
+      <section class="card"><div class="list">${d.equipo.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(p => `<div class="li">${avatar(p.nombre, 40)}<span><b>${esc(p.nombre)}</b><small>${esc(p.correo)} · ${d.nominaron[p.correo] ? 'propuso' : 'no ha propuesto'} · ${d.votaron[p.correo] ? 'votó' : 'no ha votado'}</small></span>
+        <span class="row">${d.nominaron[p.correo] ? `<button class="link" data-act="borrar" data-tipo="nominaciones" data-correo="${esc(p.correo)}">${S.confirm === 'borrar:nominaciones:' + p.correo ? 'Confirmar' : 'Dejar proponer de nuevo'}</button>` : ''}
+        ${d.votaron[p.correo] ? `<button class="link" data-act="borrar" data-tipo="votos" data-correo="${esc(p.correo)}">${S.confirm === 'borrar:votos:' + p.correo ? 'Confirmar' : 'Dejar votar de nuevo'}</button>` : ''}
+        <button class="link danger" data-act="quitar" data-correo="${esc(p.correo)}">${S.confirm === 'quitar:' + p.correo ? 'Confirmar' : 'Quitar'}</button></span></div>`).join('')}</div></section>`;
+  },
+  categorias() {
+    const d = S.d;
+    return head('Categorías', 'Activa o desactiva premios, o agrega uno nuevo.') +
+      `<section class="card"><h3>Nueva categoría</h3><form id="fCat" class="addrow">
+        <label class="f" for="cNombre">Nombre del premio<input class="inp" id="cNombre" required maxlength="40"></label>
+        <label class="f" for="cDesc">Qué reconoce<input class="inp" id="cDesc" required maxlength="120"></label>
+        <button class="btn" type="submit">Agregar</button></form></section>
+      <div class="tiles">${d.categorias.map(c => `<article class="tile" style="${c.activa ? '' : 'opacity:.55'}"><div class="clap" aria-hidden="true"></div><div class="tile-body">
+        <div class="ico">${catIcon(c.id)}</div><h4>${esc(c.nombre)}</h4><p>${esc(c.desc)}</p>
+        <div class="row"><button class="btn ghost small" data-act="activar" data-id="${esc(c.id)}" data-v="${c.activa ? '0' : '1'}">${c.activa ? 'Desactivar' : 'Activar'}</button>
+        <button class="link danger" data-act="quitarcat" data-id="${esc(c.id)}">${S.confirm === 'quitarcat:' + c.id ? 'Confirmar' : 'Quitar'}</button></div></div></article>`).join('')}</div>`;
+  },
+  fechas() {
+    const d = S.d, f = d.ajustes.fechas;
+    const opt = (v, t) => `<option value="${v}" ${d.ajustes.fase === v ? 'selected' : ''}>${t}</option>`;
+    return head('Fechas', 'La fase cambia sola según estas fechas (hora de Bogotá).') +
+      `<section class="card"><form id="fFechas" style="display:grid;gap:16px">
+        <div class="dates">${FASES.map(p => `<fieldset><legend>${p.name}</legend>
+          <label class="f">Inicio<input class="inp" type="date" name="${p.id}-0" value="${f[p.id][0]}" required></label>
+          <label class="f">Fin<input class="inp" type="date" name="${p.id}-1" value="${f[p.id][1]}" required></label></fieldset>`).join('')}</div>
+        <label class="f" for="fase" style="text-align:left">Fase<select class="sel" id="fase" name="fase">${opt('auto', 'Automática por fechas')}${opt('prep', 'Forzar: Preparación')}${opt('nom', 'Forzar: Propuestas abiertas')}${opt('fin', 'Forzar: Finalistas')}${opt('vot', 'Forzar: Votación abierta')}${opt('cer', 'Forzar: Ceremonia')}${opt('cerrado', 'Forzar: Cerrado')}</select></label>
+        <div class="row"><button class="btn" type="submit">Guardar fechas</button></div></form></section>`;
+  },
+};
+
+function render(err = '') {
+  renderNav();
+  $('#main').innerHTML = S.d ? V[S.tab]() : loginView(err);
+}
+
+async function accion(nombre, datos, ok) {
+  S.busy = true;
+  try { await adm(nombre, datos); await cargar(); if (ok) toast(ok); }
+  catch (e) { toast(e.message); }
+  S.busy = false; S.confirm = null; render();
+}
+function confirmar(key) {
+  if (S.confirm === key) return true;
+  S.confirm = key; clearTimeout(S.cT); S.cT = setTimeout(() => { S.confirm = null; render(); }, 6000); render();
+  return false;
+}
+
+document.addEventListener('submit', async e => {
+  e.preventDefault();
+  const id = e.target.id;
+  if (id === 'fClave') {
+    S.clave = $('#clave').value; S.busy = true; render();
+    try { await cargar(); try { sessionStorage.setItem('premios-admin', S.clave); } catch {} S.busy = false; render(); }
+    catch (err) { S.d = null; S.busy = false; render(err.message); }
+  }
+  if (id === 'fPersona') accion('adminPersona', { op: 'agregar', correo: $('#pCorreo').value, nombre: $('#pNombre').value }, 'Persona agregada');
+  if (id === 'fCat') accion('adminCategoria', { op: 'agregar', nombre: $('#cNombre').value, desc: $('#cDesc').value }, 'Categoría agregada');
+  if (id === 'fFechas') {
+    const fd = new FormData(e.target), fechas = {};
+    for (const p of FASES) fechas[p.id] = [fd.get(p.id + '-0'), fd.get(p.id + '-1')];
+    accion('adminFechas', { fechas, fase: fd.get('fase') }, 'Fechas guardadas');
+  }
+});
+
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-tab],[data-act]');
+  if (!t || S.busy) return;
+  if (t.dataset.tab) { S.tab = t.dataset.tab; S.confirm = null; try { sessionStorage.setItem('premios-admin-tab', S.tab); } catch {} render(); window.scrollTo(0, 0); return; }
+  const a = t.dataset.act, c = t.dataset.correo;
+  if (a === 'salir') { try { sessionStorage.removeItem('premios-admin'); } catch {} S.clave = ''; S.d = null; return render(); }
+  if (a === 'publicar' && confirmar('publicar')) return accion('adminPublicarFinalistas', {}, 'Finalistas publicados');
+  if (a === 'revelar' && confirmar('revelar')) return accion('adminRevelar', { revelar: !S.d.ajustes.revelado }, S.d.ajustes.revelado ? 'Ganadores ocultos' : 'Ganadores visibles para todos');
+  if (a === 'quitar' && confirmar('quitar:' + c)) return accion('adminPersona', { op: 'quitar', correo: c }, 'Persona quitada');
+  if (a === 'borrar' && confirmar(`borrar:${t.dataset.tipo}:${c}`)) return accion('adminBorrarRespuesta', { tipo: t.dataset.tipo, correo: c }, 'Listo: puede enviar de nuevo');
+  if (a === 'activar') return accion('adminCategoria', { op: 'activar', id: t.dataset.id, activa: t.dataset.v === '1' }, 'Categoría actualizada');
+  if (a === 'quitarcat' && confirmar('quitarcat:' + t.dataset.id)) return accion('adminCategoria', { op: 'quitar', id: t.dataset.id }, 'Categoría quitada');
+});
+
+(async function boot() {
+  if (S.clave) { try { await cargar(); } catch (e) { S.d = null; try { sessionStorage.removeItem('premios-admin'); } catch {} } }
+  render();
+})();
+</script>
+</body>
+</html>
