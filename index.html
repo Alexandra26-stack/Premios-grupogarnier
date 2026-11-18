@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Premios de Fin de Año 2026 · Loymark Bogotá</title>
+<title>Premios de Fin de Año 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap" rel="stylesheet">
@@ -40,11 +40,15 @@
 </div>
 <div class="toast" id="toast" role="status"></div>
 
+<script src="assets/companias.js"></script>
 <script src="assets/comun.js"></script>
 <script>
 const TABS = [['nominar', 'Proponer'], ['votar', 'Votar'], ['ganadores', 'Ganadores']];
 const S = { pub: null, me: null, tab: 'nominar', correo: '', draftNom: {}, draftVote: {}, confirm: null, busy: false, error: '' };
-const TK = 'premios-sesion';
+const TK = CKEY('premios-sesion');
+const LUGAR_BASE = 'Grupo Garnier';
+const lugar = () => S.me ? `${S.me.empresa} · ${S.me.pais}` : LUGAR_BASE;
+document.title = 'Premios de Fin de Año 2026 · Grupo Garnier';
 
 function sesion() { try { const s = JSON.parse(localStorage.getItem(TK)); return s && s.exp > Date.now() ? s : null; } catch { return null; } }
 function guardarSesion(token) { try { localStorage.setItem(TK, JSON.stringify({ token, exp: Date.now() + 14 * 864e5 })); } catch {} }
@@ -53,14 +57,14 @@ function salir() { try { localStorage.removeItem(TK); } catch {} S.me = null; S.
 /* ---------- Render ---------- */
 function renderNav() {
   $('#tabs').innerHTML = TABS.map(([id, n], i) => `<button role="tab" id="tab-${id}" aria-selected="${S.tab === id}" data-tab="${id}"><small>${String(i + 1).padStart(2, '0')}</small>${n}</button>`).join('');
-  $('#whoBox').innerHTML = S.me ? `<em>Ingresaste como</em><span>${esc(S.me.nombre)}</span><br><button type="button" class="link" data-act="salir">Salir</button>` : `<em>Premios 2026</em><span>Loymark Bogotá</span>`;
+  $('#whoBox').innerHTML = S.me ? `<em>Ingresaste como</em><span>${esc(S.me.nombre)}</span><em>${esc(lugar())}</em><button type="button" class="link" data-act="salir">Salir</button>` : `<em>Premios 2026</em><span>${esc(LUGAR_BASE)}</span>`;
 }
 
 function hero() {
   const p = S.pub, cer = p.fechas.cer[0];
   const days = Math.max(0, Math.round((Date.parse(cer) - Date.parse(hoy())) / 864e5));
   const sub = { nominar: 'Propón a tus compañeros en cada categoría. Revisa bien antes de enviar: una vez enviadas no se pueden cambiar.', votar: 'Elige a uno de los 2 finalistas de cada categoría. Una vez enviado, tu voto no se puede cambiar.', ganadores: 'Los ganadores de este año.' }[S.tab];
-  return `<section class="hero mini"><div class="copy"><span class="eyebrow">Loymark · Bogotá</span>
+  return `<section class="hero mini"><div class="copy"><span class="eyebrow">${esc(lugar())}</span>
     <h1>Premios de Fin de Año <span>2026</span></h1><div class="rule"></div>
     <p class="sub">${sub} Tus respuestas son confidenciales.</p></div>
     <div class="count"><span class="n">${days}</span><span class="l">${days === 1 ? 'día' : 'días'} para la ceremonia</span><span class="d">${fmt(cer)} de 2026</span><span class="phase-now">${p.fase === 'cerrado' ? faseNombre(p.fase) : 'Fase actual: ' + faseNombre(p.fase)}</span></div></section>`;
@@ -68,9 +72,22 @@ function hero() {
 
 function loginView() {
   const err = S.error ? `<div class="banner">${esc(S.error)}</div>` : '';
-  return err + `<section class="card login"><div class="lock" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></div>
-    <h3>Ingresa con tu correo</h3><p class="sub">Usa tu correo corporativo. Así la app sabe quién eres y no te deja proponerte ni votarte a ti mismo.</p>
-    <form id="fCorreo"><label class="sr-only" for="correo">Correo</label><input class="inp" id="correo" type="email" autocomplete="email" placeholder="nombre@loymark.com" value="${esc(S.correo)}" required>
+  const icon = `<div class="lock" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>`;
+  const sel = (id, label, list, v) => `<label class="sr-only" for="${id}">${label}</label><select class="sel inp" id="${id}" required><option value="">${label}</option>${list.map(n => `<option ${n === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
+  if (S.paso === 'grupo') return err + `<section class="card login">${icon}
+    <h3>¿Dónde trabajas?</h3><p class="sub">Tu correo <b>${esc(S.correo)}</b> es nuevo. Elige tu empresa y tu país: solo verás y votarás a compañeros de tu mismo equipo.</p>
+    <form id="fGrupo">${sel('empresa', 'Tu empresa', S.pub.empresas, S.empresa)}${sel('pais', 'Tu país', S.pub.paises, S.pais)}
+    <button class="btn" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Buscando…' : 'Continuar'}</button></form>
+    <div class="row"><button type="button" class="link" data-act="otro">Usar otro correo</button></div></section>`;
+  if (S.paso === 'nombre') return err + `<section class="card login">${icon}
+    <h3>¿Quién eres?</h3><p class="sub">${esc(S.empresa)} · ${esc(S.pais)}. Elige tu nombre: quedará amarrado a tu correo <b>${esc(S.correo)}</b> y no podrás cambiarlo.</p>
+    <form id="fNombre"><label class="sr-only" for="nombre">Tu nombre</label><select class="sel inp" id="nombre" required><option value="">— Elige tu nombre —</option>${S.libres.map(n => `<option>${esc(n)}</option>`).join('')}</select>
+    <button class="btn" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Entrando…' : 'Soy yo, entrar'}</button></form>
+    <div class="row"><button type="button" class="link" data-act="atras">Cambiar empresa o país</button></div></section>`;
+  return err + `<section class="card login">${icon}
+    <h3>Ingresa a los premios</h3><p class="sub">Escribe tu correo y la clave del grupo que te compartió Talento Humano. Así nadie puede proponerse ni votarse a sí mismo.</p>
+    <form id="fCorreo"><label class="sr-only" for="correo">Correo</label><input class="inp" id="correo" type="email" autocomplete="email" placeholder="tucorreo@empresa.com" value="${esc(S.correo)}" required>
+    <label class="sr-only" for="claveg">Clave del grupo</label><input class="inp" id="claveg" type="password" autocomplete="current-password" placeholder="Clave del grupo" required>
     <button class="btn" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Entrando…' : 'Entrar'}</button></form></section>`;
 }
 
@@ -98,7 +115,9 @@ function nominarView() {
 }
 
 function votarView() {
-  const p = S.pub, fin = p.finalistas;
+  const p = S.pub;
+  if (!S.me) return loginView();
+  const fin = S.me.finalistas;
   if (!fin) {
     return `<div class="banner">Los finalistas se mostrarán cuando abra la votación, el ${fmt(p.fechas.vot[0])}. La votación va hasta el ${fmt(p.fechas.vot[1])}.</div>
       <div class="tiles wide">${cats().map(c => `<article class="tile"><div class="clap" aria-hidden="true"></div><div class="tile-body">
@@ -106,7 +125,6 @@ function votarView() {
         <div class="finals">${[1, 2].map(() => `<div class="person blank" aria-hidden="true"><span class="av empty" style="--s:56px">?</span><span>Por revelar</span></div>`).join('')}</div>
       </div></article>`).join('')}</div>`;
   }
-  if (!S.me) return loginView();
   const sent = !!S.me.votoEn, open = p.fase === 'vot', locked = sent || !open;
   const picks = sent ? S.me.votos : S.draftVote, who = S.me.nombre;
   const list = cats().filter(c => (fin[c.id] || []).length);
@@ -124,7 +142,8 @@ function votarView() {
 }
 
 function ganadoresView() {
-  const g = S.pub.ganadores;
+  if (!S.me) return loginView();
+  const g = S.me.ganadores;
   if (!g) return `<div class="card"><div class="empty">Los ganadores se revelan en la ceremonia del ${fmt(S.pub.fechas.cer[0])}.</div></div>`;
   return `<section class="card"><h3>Ganadores 2026</h3><div class="winners">${cats().filter(c => g[c.id]).map(c => `<div class="winner"><span class="cat-n">${esc(c.nombre)}</span><span class="p">${esc(g[c.id])}</span><span class="d">${esc(c.desc)}</span></div>`).join('')}</div></section>`;
 }
@@ -168,16 +187,21 @@ async function cargarYo() {
   catch (e) { S.me = null; try { localStorage.removeItem(TK); } catch {} }
 }
 
-document.addEventListener('submit', async e => {
-  e.preventDefault();
-  if (e.target.id !== 'fCorreo') return;
-  S.correo = $('#correo').value.trim().toLowerCase();
+async function entrar(datos) {
   S.busy = true; S.error = ''; render();
   try {
-    const r = await api('entrar', { correo: S.correo });
-    guardarSesion(r.token); await cargarYo(); toast(`Hola, ${r.nombre.split(' ')[0]}`);
+    const r = await api('entrar', { correo: S.correo, clave: S.claveg, empresa: S.empresa, pais: S.pais, ...datos });
+    if (r.elegirGrupo) S.paso = 'grupo';
+    else if (r.elegirNombre) { S.paso = 'nombre'; S.libres = r.libres; }
+    else { S.paso = null; S.libres = null; S.claveg = ''; guardarSesion(r.token); await cargarYo(); toast(`Hola, ${r.nombre.split(' ')[0]}`); }
   } catch (err) { S.error = err.message; }
   S.busy = false; render();
+}
+document.addEventListener('submit', e => {
+  e.preventDefault();
+  if (e.target.id === 'fCorreo') { S.correo = $('#correo').value.trim().toLowerCase(); S.claveg = $('#claveg').value; S.empresa = ''; S.pais = ''; return entrar({}); }
+  if (e.target.id === 'fGrupo') { S.empresa = $('#empresa').value; S.pais = $('#pais').value; if (!S.empresa || !S.pais) return; return entrar({}); }
+  if (e.target.id === 'fNombre') { const n = $('#nombre').value; if (!n) return; return entrar({ nombre: n }); }
 });
 
 document.addEventListener('click', async e => {
@@ -186,6 +210,8 @@ document.addEventListener('click', async e => {
   if (t.dataset.tab) { S.tab = t.dataset.tab; S.confirm = null; S.error = ''; try { localStorage.setItem('premios-tab', S.tab); } catch {} render(); window.scrollTo(0, 0); return; }
   const act = t.dataset.act;
   if (act === 'salir') return salir();
+  if (act === 'otro') { S.paso = null; S.libres = null; S.empresa = ''; S.pais = ''; S.error = ''; return render(); }
+  if (act === 'atras') { S.paso = 'grupo'; S.error = ''; return render(); }
   if (act === 'pick') return openPicker(t.dataset.cat);
   if (act === 'vote') { const c = t.dataset.cat; S.draftVote[c] = S.draftVote[c] === t.dataset.p ? undefined : t.dataset.p; if (!S.draftVote[c]) delete S.draftVote[c]; return render(); }
   if (act === 'sendnom' || act === 'sendvote') {

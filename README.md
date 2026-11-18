@@ -1,7 +1,7 @@
 # Premios de Fin de Año 2026 · Loymark Bogotá
 
 - **Participantes:** `https://alexandra26-stack.github.io/Premios-grupogarnier/`
-  Entran con su correo corporativo. Proponen, votan y ven a los ganadores.
+  Entran con su correo (cualquier dominio) y la clave del grupo. Cada empresa y país vota por separado.
 - **Talento Humano:** `https://alexandra26-stack.github.io/Premios-grupogarnier/admin/`
   Pide la clave de admin. Desde ahí se ve la participación, se publican los finalistas, se revelan los ganadores y se ajustan equipo, categorías y fechas.
 

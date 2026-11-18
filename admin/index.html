@@ -26,6 +26,8 @@
 .pend { columns: 3 200px; font-size: 14px; color: var(--muted); text-align: left; }
 .pend span { display: block; padding: 2px 0; }
 .card h3 { margin: 0; }
+.rail .filters label { min-width: 0; }
+.rail select { width: 100%; max-width: 100%; box-sizing: border-box; text-overflow: ellipsis; }
 @media (max-width: 700px) { .addrow { grid-template-columns: 1fr; } .li { grid-template-columns: auto 1fr; } }
 </style>
 </head>
@@ -33,34 +35,39 @@
 <aside class="rail">
   <div class="brand"><div class="mark" aria-hidden="true"><svg viewBox="0 0 40 40" width="40" height="40"><defs><linearGradient id="mk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#de2826"/><stop offset="1" stop-color="#ff7a45"/></linearGradient></defs><circle cx="20" cy="20" r="20" fill="url(#mk)"/><path d="M28 14.5a10 10 0 1 0 1.5 7.5H20.5" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="31" cy="9" r="2.4" fill="#f2b233"/></svg></div><div><b>Grupo Garnier</b><span>Administración</span></div></div>
   <nav class="nav" role="tablist" id="tabs" aria-label="Secciones"></nav>
+  <div class="filters" id="filtros"></div>
   <div class="who" id="whoBox"></div>
 </aside>
 <main id="main"></main>
 <div class="toast" id="toast" role="status"></div>
 
+<script src="../assets/companias.js"></script>
 <script src="../assets/comun.js"></script>
 <script>
 const TABS = [['resumen', 'Resumen'], ['propuestas', 'Propuestas'], ['votacion', 'Votación'], ['equipo', 'Equipo'], ['categorias', 'Categorías'], ['fechas', 'Fechas']];
-const S = { clave: '', d: null, tab: 'resumen', busy: false, confirm: null };
-try { S.clave = sessionStorage.getItem('premios-admin') || ''; S.tab = sessionStorage.getItem('premios-admin-tab') || 'resumen'; } catch {}
+const S = { clave: '', d: null, tab: 'resumen', busy: false, confirm: null, empresa: 'Loymark', pais: 'Colombia' };
+try { S.clave = sessionStorage.getItem(CKEY('premios-admin')) || ''; S.tab = sessionStorage.getItem(CKEY('premios-admin-tab')) || 'resumen'; S.empresa = sessionStorage.getItem('premios-admin-empresa') || S.empresa; S.pais = sessionStorage.getItem('premios-admin-pais') || S.pais; } catch {}
 
-async function adm(accion, datos = {}) { return api(accion, { clave: S.clave, ...datos }); }
+async function adm(accion, datos = {}) { return api(accion, { clave: S.clave, empresa: S.empresa, pais: S.pais, ...datos }); }
 async function cargar() { S.d = await adm('adminDatos'); }
+const GRUPO = () => `${S.empresa} · ${S.pais}`;
 const catName = id => S.d.categorias.find(c => c.id === id)?.nombre || id;
 
 function renderNav() {
   $('#tabs').innerHTML = S.d ? TABS.map(([id, n], i) => `<button role="tab" aria-selected="${S.tab === id}" data-tab="${id}"><small>${String(i + 1).padStart(2, '0')}</small>${n}</button>`).join('') : '';
-  $('#whoBox').innerHTML = S.d ? `<em>Talento Humano</em><span>Zona de administración</span><br><a class="link" href="../" target="_blank" rel="noopener">Ver la página de participantes</a><br><button type="button" class="link" data-act="salir">Salir</button>` : '<em>Premios 2026</em><span>Administración</span>';
+  const opts = (list, v) => list.map(n => `<option ${n === v ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  $('#filtros').innerHTML = S.d ? `<label for="selEmpresa">Empresa<select id="selEmpresa">${opts(S.d.empresas, S.empresa)}</select></label><label for="selPais">País<select id="selPais">${opts(S.d.paises, S.pais)}</select></label>` : '';
+  $('#whoBox').innerHTML = S.d ? `<em>Administración</em><span>Grupo Garnier</span><br><a class="link" href="../${CQ}" target="_blank" rel="noopener">Ver la página de participantes</a><br><button type="button" class="link" data-act="salir">Salir</button>` : '<em>Premios 2026</em><span>Administración</span>';
 }
 
 function loginView(err = '') {
   return `${err ? `<div class="banner">${esc(err)}</div>` : ''}<section class="card login"><div class="lock" aria-hidden="true"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
-    <h3>Zona de administración</h3><p class="sub">Escribe la clave de Talento Humano.</p>
+    <h3>Zona de administración</h3><p class="sub">Grupo Garnier. Escribe la clave de Talento Humano.</p>
     <form id="fClave"><label class="sr-only" for="clave">Clave</label><input class="inp" id="clave" type="password" autocomplete="current-password" required>
     <button class="btn" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Entrando…' : 'Entrar'}</button></form></section>`;
 }
 
-function head(t, sub) { return `<div class="pagehead"><h2>${t}</h2><p class="sub">${sub}</p></div>`; }
+function head(t, sub, global) { return `<div class="pagehead"><h2>${t}${global ? '' : ` · ${esc(GRUPO())}`}</h2><p class="sub">${sub}</p></div>`; }
 
 const V = {
   resumen() {
@@ -70,13 +77,15 @@ const V = {
     const stat = (l, v, note, cls = '') => `<div class="stat"><span class="lab">${l}</span><span class="num ${cls}">${v}</span><span class="note">${note}</span></div>`;
     const faltan = (arr, k) => arr.filter(p => !d[k][p.correo]).map(p => `<span>${esc(p.nombre)}</span>`).join('') || '<span>Nadie: todos participaron.</span>';
     return head('Resumen', `Fase actual: ${faseNombre(d.fase)}${d.ajustes.fase !== 'auto' ? ' (forzada manualmente)' : ''}.`) +
-      `<div class="stats">${stat('Participantes', n, 'en la lista')}${stat('Propusieron', nom.length, pct(nom.length) + '% del equipo', 'red')}${stat('Votaron', vot.length, pct(vot.length) + '% del equipo', 'red')}${stat('Ganadores', d.ajustes.revelado ? 'Visibles' : 'Ocultos', d.ajustes.revelado ? 'todos los ven' : 'solo tú los ves')}</div>
+      `<div class="stats">${stat('Participantes', n, 'en la lista')}${stat('Propusieron', nom.length, pct(nom.length) + '% del equipo', 'red')}${stat('Votaron', vot.length, pct(vot.length) + '% del equipo', 'red')}${stat('Ganadores', d.revelado ? 'Visibles' : 'Ocultos', d.revelado ? 'su equipo los ve' : 'solo TH los ve')}</div>
+      ${n ? '' : `<div class="banner info">Este grupo todavía no tiene personas. Cárgalas en la pestaña Equipo.</div>`}
       <section class="card"><h3>Faltan por proponer</h3><div class="pend">${faltan(team, 'nominaron')}</div></section>
       <section class="card"><h3>Faltan por votar</h3><div class="pend">${faltan(team, 'votaron')}</div></section>
+      <section class="card"><h3>Todas las empresas y países</h3><p class="sub">Toca un grupo para verlo.</p><div class="list">${d.grupos.filter(g => g.personas).map(g => `<button type="button" class="li" style="background:none;border:0;border-top:1px solid var(--line);cursor:pointer;font:inherit" data-act="ir" data-empresa="${esc(g.empresa)}" data-pais="${esc(g.pais)}"><span class="chip ${g.grupo === d.grupo ? 'win' : 'next'}">${g.personas}</span><span><b>${esc(g.empresa)}</b><small>${esc(g.pais)}</small></span><span class="sub">${g.propusieron} propusieron · ${g.votaron} votaron</span></button>`).join('') || '<p class="sub">Aún no hay personas cargadas.</p>'}</div></section>
       <section class="card"><h3>Hoja de datos</h3><p class="sub">Todo se guarda solo. No necesitas abrirla, pero aquí está si quieres descargar los datos.</p><div class="row"><a class="btn ghost" href="${esc(d.urlHoja)}" target="_blank" rel="noopener">Abrir hoja de Google</a></div></section>`;
   },
   propuestas() {
-    const d = S.d, fin = d.ajustes.finalistas || {};
+    const d = S.d, fin = d.finalistas || {};
     const blocks = d.categorias.filter(c => c.activa).map(c => {
       const e = Object.entries(d.nominaciones[c.id] || {}).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'es'));
       const max = e[0]?.[1] || 1;
@@ -84,11 +93,11 @@ const V = {
         ${e.length ? e.slice(0, 6).map(([p, v], i) => `<div class="bar"><span>${esc(p)}${(fin[c.id] || []).includes(p) ? ' <span class="chip win">Finalista</span>' : ''}</span><div class="track"><div class="fill ${i < 2 ? 'win' : ''}" style="width:${v / max * 100}%"></div></div><span class="n">${v}</span></div>`).join('') : '<p class="sub">Sin propuestas todavía.</p>'}</div>`;
     }).join('');
     return head('Propuestas', 'Las 2 personas con más propuestas en cada categoría pasan a la votación.') +
-      `<section class="card"><div class="row between"><div><h3>Finalistas</h3><p class="sub">${d.ajustes.finalistas ? 'Ya publicaste los finalistas. Los participantes los verán cuando abra la votación.' : 'Publícalos cuando cierren las propuestas.'}</p></div>
-      <button class="btn" data-act="publicar">${S.confirm === 'publicar' ? 'Toca otra vez para confirmar' : d.ajustes.finalistas ? 'Volver a calcular finalistas' : 'Publicar finalistas'}</button></div>${blocks}</section>`;
+      `<section class="card"><div class="row between"><div><h3>Finalistas</h3><p class="sub">${d.finalistas ? 'Ya publicaste los finalistas de este grupo. Los verán cuando abra la votación.' : 'Publícalos cuando cierren las propuestas.'}</p></div>
+      <button class="btn" data-act="publicar">${S.confirm === 'publicar' ? 'Toca otra vez para confirmar' : d.finalistas ? 'Volver a calcular finalistas' : 'Publicar finalistas'}</button></div>${blocks}</section>`;
   },
   votacion() {
-    const d = S.d, fin = d.ajustes.finalistas;
+    const d = S.d, fin = d.finalistas;
     if (!fin) return head('Votación', 'Conteo de votos entre los finalistas.') + `<div class="card"><div class="empty">Primero publica los finalistas en Propuestas.</div></div>`;
     const { ranking, ganadores } = d.calculo;
     const blocks = d.categorias.filter(c => c.activa).map(c => {
@@ -97,24 +106,28 @@ const V = {
         ${r.map(x => `<div class="bar"><span>${esc(x.p)}</span><div class="track"><div class="fill ${ganadores[c.id] === x.p ? 'win' : ''}" style="width:${x.v / max * 100}%"></div></div><span class="n">${x.v}</span></div>`).join('')}</div>`;
     }).join('');
     return head('Votación', 'Cada persona gana un solo premio: si alguien queda primero en dos categorías, en la otra gana quien sigue.') +
-      `<section class="card"><div class="row between"><div><h3>Ganadores</h3><p class="sub">${d.ajustes.revelado ? 'Visibles para todo el equipo en la pestaña Ganadores.' : 'Ocultos. Revélalos el día de la ceremonia.'}</p></div>
-      <button class="btn" data-act="revelar">${S.confirm === 'revelar' ? 'Toca otra vez para confirmar' : d.ajustes.revelado ? 'Ocultar ganadores' : 'Revelar ganadores'}</button></div>${blocks}</section>`;
+      `<section class="card"><div class="row between"><div><h3>Ganadores</h3><p class="sub">${d.revelado ? 'Visibles para este equipo en la pestaña Ganadores.' : 'Ocultos. Revélalos el día de la ceremonia.'}</p></div>
+      <button class="btn" data-act="revelar">${S.confirm === 'revelar' ? 'Toca otra vez para confirmar' : d.revelado ? 'Ocultar ganadores' : 'Revelar ganadores'}</button></div>${blocks}</section>`;
   },
   equipo() {
     const d = S.d;
-    return head('Equipo', `${d.equipo.length} personas. Solo estos correos pueden entrar a proponer y votar.`) +
+    return head('Equipo', `${d.equipo.length} personas en este grupo. Las personas que cargues aquí quedan en ${esc(GRUPO())}. Entran con su correo y la clave del grupo; si no tienen correo aquí, eligen empresa, país y nombre la primera vez.`) +
       `<section class="card"><h3>Agregar persona</h3><form id="fPersona" class="addrow">
-        <label class="f" for="pCorreo">Correo<input class="inp" id="pCorreo" type="email" required placeholder="nombre@loymark.com"></label>
+        <label class="f" for="pCorreo">Correo (opcional)<input class="inp" id="pCorreo" type="email" placeholder="nombre@empresa.com"></label>
         <label class="f" for="pNombre">Nombre<input class="inp" id="pNombre" required placeholder="Nombre y apellido"></label>
         <button class="btn" type="submit">Agregar</button></form></section>
-      <section class="card"><div class="list">${d.equipo.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(p => `<div class="li">${avatar(p.nombre, 40)}<span><b>${esc(p.nombre)}</b><small>${esc(p.correo)} · ${d.nominaron[p.correo] ? 'propuso' : 'no ha propuesto'} · ${d.votaron[p.correo] ? 'votó' : 'no ha votado'}</small></span>
+      <section class="card"><h3>Cargar varias personas</h3><p class="sub">Pega una persona por línea: correo, nombre. También puedes poner solo el nombre: esa persona elegirá su nombre al entrar con su correo.</p>
+        <form id="fVarias" style="display:grid;gap:12px"><label class="sr-only" for="varias">Personas</label><textarea id="varias" rows="6" placeholder="ana.perez@empresa.com, Ana Pérez&#10;juan.gomez@empresa.com, Juan Gómez" required></textarea>
+        <div class="row"><button class="btn" type="submit">Cargar personas</button></div></form></section>
+      <section class="card"><div class="list">${d.equipo.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(p => `<div class="li">${avatar(p.nombre, 40)}<span><b>${esc(p.nombre)}</b><small>${p.correo ? esc(p.correo) : 'Sin correo: lo registra al entrar'} · ${d.nominaron[p.correo] ? 'propuso' : 'no ha propuesto'} · ${d.votaron[p.correo] ? 'votó' : 'no ha votado'}</small></span>
         <span class="row">${d.nominaron[p.correo] ? `<button class="link" data-act="borrar" data-tipo="nominaciones" data-correo="${esc(p.correo)}">${S.confirm === 'borrar:nominaciones:' + p.correo ? 'Confirmar' : 'Dejar proponer de nuevo'}</button>` : ''}
         ${d.votaron[p.correo] ? `<button class="link" data-act="borrar" data-tipo="votos" data-correo="${esc(p.correo)}">${S.confirm === 'borrar:votos:' + p.correo ? 'Confirmar' : 'Dejar votar de nuevo'}</button>` : ''}
-        <button class="link danger" data-act="quitar" data-correo="${esc(p.correo)}">${S.confirm === 'quitar:' + p.correo ? 'Confirmar' : 'Quitar'}</button></span></div>`).join('')}</div></section>`;
+        ${p.correo ? `<button class="link" data-act="liberar" data-nombre="${esc(p.nombre)}">${S.confirm === 'liberar:' + p.nombre ? 'Confirmar' : 'Quitar correo'}</button>` : ''}
+        <button class="link danger" data-act="quitar" data-nombre="${esc(p.nombre)}">${S.confirm === 'quitar:' + p.nombre ? 'Confirmar' : 'Quitar'}</button></span></div>`).join('')}</div></section>`;
   },
   categorias() {
     const d = S.d;
-    return head('Categorías', 'Activa o desactiva premios, o agrega uno nuevo.') +
+    return head('Categorías', 'Las categorías son las mismas para todas las empresas y países.', true) +
       `<section class="card"><h3>Nueva categoría</h3><form id="fCat" class="addrow">
         <label class="f" for="cNombre">Nombre del premio<input class="inp" id="cNombre" required maxlength="40"></label>
         <label class="f" for="cDesc">Qué reconoce<input class="inp" id="cDesc" required maxlength="120"></label>
@@ -127,7 +140,7 @@ const V = {
   fechas() {
     const d = S.d, f = d.ajustes.fechas;
     const opt = (v, t) => `<option value="${v}" ${d.ajustes.fase === v ? 'selected' : ''}>${t}</option>`;
-    return head('Fechas', 'La fase cambia sola según estas fechas (hora de Bogotá).') +
+    return head('Fechas', 'Las fechas aplican a todas las empresas y países. La fase cambia sola (hora de Bogotá).', true) +
       `<section class="card"><form id="fFechas" style="display:grid;gap:16px">
         <div class="dates">${FASES.map(p => `<fieldset><legend>${p.name}</legend>
           <label class="f">Inicio<input class="inp" type="date" name="${p.id}-0" value="${f[p.id][0]}" required></label>
@@ -159,10 +172,15 @@ document.addEventListener('submit', async e => {
   const id = e.target.id;
   if (id === 'fClave') {
     S.clave = $('#clave').value; S.busy = true; render();
-    try { await cargar(); try { sessionStorage.setItem('premios-admin', S.clave); } catch {} S.busy = false; render(); }
+    try { await cargar(); try { sessionStorage.setItem(CKEY('premios-admin'), S.clave); } catch {} S.busy = false; render(); }
     catch (err) { S.d = null; S.busy = false; render(err.message); }
   }
   if (id === 'fPersona') accion('adminPersona', { op: 'agregar', correo: $('#pCorreo').value, nombre: $('#pNombre').value }, 'Persona agregada');
+  if (id === 'fVarias') {
+    const personas = $('#varias').value.split(/\n+/).map(l => l.split(/[,;\t]/).map(x => x.trim()).filter(Boolean)).filter(x => x.length).map(x => x[0].includes('@') ? { correo: x[0], nombre: x.slice(1).join(' ') } : { correo: '', nombre: x.join(' ') });
+    if (!personas.length) { toast('Escribe al menos una línea: correo, nombre'); return; }
+    accion('adminPersonas', { personas }, `${personas.length} personas cargadas`);
+  }
   if (id === 'fCat') accion('adminCategoria', { op: 'agregar', nombre: $('#cNombre').value, desc: $('#cDesc').value }, 'Categoría agregada');
   if (id === 'fFechas') {
     const fd = new FormData(e.target), fechas = {};
@@ -171,22 +189,36 @@ document.addEventListener('submit', async e => {
   }
 });
 
+async function cambiarGrupo(empresa, pais) {
+  S.empresa = empresa; S.pais = pais; S.confirm = null;
+  try { sessionStorage.setItem('premios-admin-empresa', empresa); sessionStorage.setItem('premios-admin-pais', pais); } catch {}
+  S.busy = true; $('#main').style.opacity = .5;
+  try { await cargar(); } catch (e) { toast(e.message); }
+  S.busy = false; $('#main').style.opacity = 1; render();
+}
+document.addEventListener('change', e => {
+  if (e.target.id === 'selEmpresa') cambiarGrupo(e.target.value, S.pais);
+  if (e.target.id === 'selPais') cambiarGrupo(S.empresa, e.target.value);
+});
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-tab],[data-act]');
   if (!t || S.busy) return;
-  if (t.dataset.tab) { S.tab = t.dataset.tab; S.confirm = null; try { sessionStorage.setItem('premios-admin-tab', S.tab); } catch {} render(); window.scrollTo(0, 0); return; }
+  if (t.dataset.tab) { S.tab = t.dataset.tab; S.confirm = null; try { sessionStorage.setItem(CKEY('premios-admin-tab'), S.tab); } catch {} render(); window.scrollTo(0, 0); return; }
   const a = t.dataset.act, c = t.dataset.correo;
-  if (a === 'salir') { try { sessionStorage.removeItem('premios-admin'); } catch {} S.clave = ''; S.d = null; return render(); }
+  if (a === 'ir') return cambiarGrupo(t.dataset.empresa, t.dataset.pais);
+  if (a === 'salir') { try { sessionStorage.removeItem(CKEY('premios-admin')); } catch {} S.clave = ''; S.d = null; return render(); }
   if (a === 'publicar' && confirmar('publicar')) return accion('adminPublicarFinalistas', {}, 'Finalistas publicados');
-  if (a === 'revelar' && confirmar('revelar')) return accion('adminRevelar', { revelar: !S.d.ajustes.revelado }, S.d.ajustes.revelado ? 'Ganadores ocultos' : 'Ganadores visibles para todos');
-  if (a === 'quitar' && confirmar('quitar:' + c)) return accion('adminPersona', { op: 'quitar', correo: c }, 'Persona quitada');
+  if (a === 'revelar' && confirmar('revelar')) return accion('adminRevelar', { revelar: !S.d.revelado }, S.d.revelado ? 'Ganadores ocultos' : 'Ganadores visibles para este equipo');
+  const nm = t.dataset.nombre;
+  if (a === 'quitar' && confirmar('quitar:' + nm)) return accion('adminPersona', { op: 'quitar', nombre: nm }, 'Persona quitada');
+  if (a === 'liberar' && confirmar('liberar:' + nm)) return accion('adminPersona', { op: 'liberar', nombre: nm }, 'Correo quitado: la persona puede registrarse de nuevo');
   if (a === 'borrar' && confirmar(`borrar:${t.dataset.tipo}:${c}`)) return accion('adminBorrarRespuesta', { tipo: t.dataset.tipo, correo: c }, 'Listo: puede enviar de nuevo');
   if (a === 'activar') return accion('adminCategoria', { op: 'activar', id: t.dataset.id, activa: t.dataset.v === '1' }, 'Categoría actualizada');
   if (a === 'quitarcat' && confirmar('quitarcat:' + t.dataset.id)) return accion('adminCategoria', { op: 'quitar', id: t.dataset.id }, 'Categoría quitada');
 });
 
 (async function boot() {
-  if (S.clave) { try { await cargar(); } catch (e) { S.d = null; try { sessionStorage.removeItem('premios-admin'); } catch {} } }
+  if (S.clave) { try { await cargar(); } catch (e) { S.d = null; try { sessionStorage.removeItem(CKEY('premios-admin')); } catch {} } }
   render();
 })();
 </script>

@@ -1,6 +1,15 @@
 /* Configuración y utilidades compartidas · Premios de Fin de Año */
-// Pega aquí la URL de la aplicación web de Apps Script (termina en /exec).
-window.PREMIOS_API = window.PREMIOS_API || 'https://script.google.com/macros/s/AKfycbxo17Zr0TslyGA2kr7tfm8z6ddHF-cGAzqxcjSY7xG2fkeq68HsBKYmY_OXXzzu0ZQ-/exec';
+// La conexión de cada compañía está en assets/companias.js
+(function () {
+  const all = window.COMPANIAS || {}, ids = Object.keys(all);
+  let id = new URLSearchParams(location.search).get('c');
+  if (!all[id]) id = ids[0];
+  window.COMPANIA_ID = id;
+  window.COMPANIA = all[id] || { nombre: '', sede: '', api: '' };
+  window.PREMIOS_API = window.PREMIOS_API || window.COMPANIA.api;
+})();
+const CQ = window.COMPANIA_ID ? '?c=' + encodeURIComponent(window.COMPANIA_ID) : '';
+const CKEY = k => k + ':' + (window.COMPANIA_ID || '');
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
