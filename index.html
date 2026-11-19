@@ -18,6 +18,26 @@
 .lock { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, var(--pine), #b0283a); color: #fff; box-shadow: 0 10px 18px -10px rgba(142,20,36,.9); }
 .rail .who .link { color: #e8c9a0; margin-top: 6px; display: inline-block; }
 .loading { padding: 60px 0; }
+.gala { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 22px; }
+.gw { position: relative; overflow: hidden; border-radius: 26px; padding: 30px 20px 24px; display: grid; justify-items: center; gap: 10px; text-align: center; color: #fff;
+  background: radial-gradient(circle at 50% 28%, rgba(242,178,51,.35), transparent 55%), linear-gradient(165deg, #8e1424 0%, #5c0f1c 60%, #3d0a14 100%);
+  box-shadow: 0 22px 40px -24px rgba(92,15,28,.9); animation: gwIn .7s cubic-bezier(.2,.9,.3,1.2) both; animation-delay: calc(var(--i) * 90ms); }
+.gw::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .9;
+  background: radial-gradient(circle, #f2b233 0 2px, transparent 3px) 12px 18px / 46px 52px, radial-gradient(circle, rgba(255,255,255,.7) 0 1.5px, transparent 2.5px) 30px 6px / 58px 44px, radial-gradient(circle, #ff8a80 0 1.6px, transparent 2.6px) 4px 30px / 64px 60px; }
+.gw .ring { position: relative; padding: 6px; border-radius: 50%; background: conic-gradient(from 0deg, #f7d27a, #d4a24c, #fff3c4, #d4a24c, #f7d27a); box-shadow: 0 0 0 6px rgba(242,178,51,.18), 0 16px 30px -12px rgba(0,0,0,.6); }
+.gw .ring .av { box-shadow: none; }
+.gw .crown { position: absolute; top: -26px; left: 50%; transform: translateX(-50%) rotate(-8deg); filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); }
+.gw .medal { position: absolute; right: -6px; bottom: 2px; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: #fff; box-shadow: 0 6px 12px -4px rgba(0,0,0,.5); }
+.gw .medal svg { width: 34px; height: 34px; }
+.gw .gw-cat { position: relative; margin-top: 8px; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; font-weight: 800; color: #f7d27a; }
+.gw .gw-name { position: relative; font-family: var(--display); font-size: 22px; font-weight: 800; line-height: 1.15; }
+.gw .gw-why { position: relative; font-size: 13px; color: #f6dccb; max-width: 240px; }
+.gw .gw-ribbon { position: relative; margin-top: 4px; padding: 5px 14px; border-radius: 999px; background: #f2b233; color: #3d0a14; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+@keyframes gwIn { from { opacity: 0; transform: translateY(18px) scale(.94); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .gw { animation: none; } }
+.galahead { text-align: center; display: grid; gap: 6px; justify-items: center; margin-bottom: 6px; }
+.galahead h3 { font-size: 26px; margin: 0; }
+
 </style>
 </head>
 <body>
@@ -149,8 +169,17 @@ function votarView() {
 function ganadoresView() {
   if (!S.me) return loginView();
   const g = S.me.ganadores;
-  if (!g) return `<div class="card"><div class="empty">Los ganadores se revelan en la ceremonia del ${fmt(S.pub.fechas.cer[0])}.</div></div>`;
-  return `<section class="card"><h3>Ganadores 2026</h3><div class="winners">${cats().filter(c => g[c.id]).map(c => `<div class="winner"><span class="cat-n">${esc(c.nombre)}</span><span class="p">${esc(g[c.id])}</span><span class="d">${esc(c.desc)}</span></div>`).join('')}</div></section>`;
+  if (!g || !Object.keys(g).length) return `<div class="card"><div class="empty">Los ganadores se revelan en la ceremonia del ${fmt(S.pub.fechas.cer[0])}.</div></div>`;
+  const crown = `<svg class="crown" width="54" height="40" viewBox="0 0 54 40" aria-hidden="true"><path d="M5 34 2 10l13 10L27 2l12 18 13-10-3 24z" fill="#f2b233" stroke="#b07a1c" stroke-width="2" stroke-linejoin="round"/><circle cx="2" cy="10" r="3" fill="#fff3c4"/><circle cx="27" cy="2" r="3" fill="#fff3c4"/><circle cx="52" cy="10" r="3" fill="#fff3c4"/><rect x="5" y="31" width="44" height="6" rx="2" fill="#d4a24c"/></svg>`;
+  const lista = cats().filter(c => g[c.id]);
+  return (S.me.demo ? demoBanner() : '') + `<section class="card"><div class="galahead"><h3>Ganadores 2026</h3><p class="sub">${esc(lugar())} · ¡Felicitaciones a todos!</p></div>
+    <div class="gala">${lista.map((c, i) => `<article class="gw" style="--i:${i}">
+      <div class="ring">${crown}${avatar(g[c.id], 128)}<span class="medal">${catIcon(c.id)}</span></div>
+      <span class="gw-cat">${esc(c.nombre)}</span>
+      <span class="gw-name">${esc(g[c.id])}</span>
+      <span class="gw-why">${esc(c.desc)}</span>
+      <span class="gw-ribbon">Ganador 2026</span>
+    </article>`).join('')}</div></section>`;
 }
 
 function render() {
