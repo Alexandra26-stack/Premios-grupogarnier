@@ -6,6 +6,7 @@
  *  - cada persona entra con su correo (cualquier dominio) y la clave del grupo;
  *    si su correo no está en la lista, elige empresa, país y su nombre una sola vez
  *  - cada empresa y país vota por separado: solo se ven y se votan compañeros del mismo grupo
+ *  - cada correo queda amarrado al primer dispositivo desde donde se entra
  *  - nadie puede proponerse ni votarse a sí mismo
  *  - las propuestas y el voto se envían una sola vez
  *  - pasan 2 finalistas por categoría en cada grupo
@@ -13,6 +14,8 @@
  */
 const CLAVE_ADMIN = 'ESCRIBE-AQUI-TU-CLAVE';
 const CLAVE_GRUPO = 'GG2027*'; // clave que usan todos los participantes para entrar
+// Correos de demostración: entran a la vista de participante, pueden probar todo y nada se guarda.
+const CORREOS_DEMO = ['agonzalez@grupogarnier.com'];
 
 const TZ = 'America/Bogota';
 const NOMBRE_HOJA = 'Premios 2026 · Grupo Garnier (datos)';
@@ -265,12 +268,18 @@ const CORREO_OK = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 function persona_(correo) { const c = normal_(correo); return c ? equipo_().find(p => p.correo === c) || null : null; }
 
+function esDemo_(correo) { return CORREOS_DEMO.map(normal_).indexOf(normal_(correo)) >= 0; }
+function personaDemo_(correo) {
+  return { correo: normal_(correo), nombre: 'Persona de prueba', empresa: EMPRESA_DEFECTO, pais: PAIS_DEFECTO, grupo: grupo_(EMPRESA_DEFECTO, PAIS_DEFECTO), activo: true, demo: true };
+}
+
 function sesion_(token) {
   if (!token) throw new Error('Tu sesión terminó. Vuelve a ingresar con tu correo.');
   const raw = PropertiesService.getScriptProperties().getProperty('t:' + token);
   const s = raw ? JSON.parse(raw) : null;
   const correo = s && s.exp > Date.now() ? s.correo : null;
   if (!correo) throw new Error('Tu sesión terminó. Vuelve a ingresar con tu correo.');
+  if (esDemo_(correo)) return personaDemo_(correo);
   const p = persona_(correo);
   if (!p) throw new Error('Tu correo ya no está en la lista de participantes.');
   return p;
@@ -285,6 +294,12 @@ function exigirAdmin_(req) {
     cache.put('adminFallos', String(fallos + 1), 900);
     throw new Error('Clave incorrecta.');
   }
+}
+
+function nuevaSesion_(correo) {
+  const token = Utilities.getUuid();
+  PropertiesService.getScriptProperties().setProperty('t:' + token, JSON.stringify({ correo: correo, exp: Date.now() + DIAS_SESION * 864e5 }));
+  return token;
 }
 
 /* ---------------- Cálculos (siempre dentro de un grupo) ---------------- */
@@ -372,6 +387,12 @@ const ACCIONES = {
     if (fallos >= 8) throw new Error('Demasiados intentos. Espera 15 minutos.');
     if (String(req.clave || '') !== CLAVE_GRUPO) { cache.put(k, String(fallos + 1), 900); throw new Error('La clave del grupo no es correcta.'); }
     if (!CORREO_OK.test(correo)) throw new Error('Escribe un correo válido.');
+    if (esDemo_(correo)) return { token: nuevaSesion_(correo), nombre: 'Persona de prueba', demo: true };
+    const dispositivo = String(req.dispositivo || '').slice(0, 80);
+    if (!dispositivo) throw new Error('Actualiza la página e inténtalo de nuevo.');
+    const props = PropertiesService.getScriptProperties();
+    const ligado = props.getProperty('d:' + correo);
+    if (ligado && ligado !== dispositivo) throw new Error('Este correo ya se usó desde otro celular o computador. Entra desde ese mismo dispositivo y navegador, o escribe a Talento Humano para habilitarte.');
     let p = persona_(correo);
     if (!p) {
       const empresa = String(req.empresa || ''), pais = String(req.pais || '');
@@ -397,14 +418,22 @@ const ACCIONES = {
       }
       p = persona_(correo);
     }
-    const token = Utilities.getUuid();
-    PropertiesService.getScriptProperties().setProperty('t:' + token, JSON.stringify({ correo: correo, exp: Date.now() + DIAS_SESION * 864e5 }));
-    return { token: token, nombre: p.nombre };
+    if (!ligado) props.setProperty('d:' + correo, dispositivo);
+    return { token: nuevaSesion_(correo), nombre: p.nombre };
   },
 
   yo: function (req) {
     const p = sesion_(req.token);
     const a = ajustes_(), fase = faseActual_(a);
+    if (p.demo) {
+      const equipo = equipo_(p.grupo).map(x => x.nombre).sort((a2, b) => a2.localeCompare(b, 'es'));
+      const real = (a.finalistas || {})[p.grupo];
+      const muestra = {};
+      categorias_().forEach((c, i) => { muestra[c.id] = equipo.length > 1 ? [equipo[(i * 2) % equipo.length], equipo[(i * 2 + 1) % equipo.length]] : []; });
+      const fin = real || muestra, gan = {};
+      Object.keys(fin).forEach(k => { if (fin[k] && fin[k][0]) gan[k] = fin[k][0]; });
+      return { demo: true, nombre: p.nombre, correo: p.correo, empresa: p.empresa, pais: p.pais, equipo: equipo, propuestas: {}, propuestasEn: null, votos: {}, votoEn: null, finalistas: fin, ganadores: gan };
+    }
     const mias = filas_('Nominaciones').filter(r => normal_(r[1]) === p.correo);
     const misVotos = filas_('Votos').filter(r => normal_(r[1]) === p.correo);
     const propuestas = {}, votos = {};
@@ -429,6 +458,7 @@ const ACCIONES = {
 
   nominar: function (req) {
     const p = sesion_(req.token);
+    if (p.demo) return { guardado: false, demo: true };
     const a = ajustes_();
     if (faseActual_(a) !== 'nom') throw new Error('Las propuestas no están abiertas en este momento.');
     const nombres = {};
@@ -459,6 +489,7 @@ const ACCIONES = {
 
   votar: function (req) {
     const p = sesion_(req.token);
+    if (p.demo) return { guardado: false, demo: true };
     const a = ajustes_();
     if (faseActual_(a) !== 'vot') throw new Error('La votación no está abierta en este momento.');
     const fin = (a.finalistas || {})[p.grupo];
@@ -512,9 +543,10 @@ const ACCIONES = {
     };
     if (g) {
       const fin = (a.finalistas || {})[g] || null;
+      const props = PropertiesService.getScriptProperties();
       Object.assign(out, {
         grupo: g,
-        equipo: todos.filter(p => p.grupo === g),
+        equipo: todos.filter(p => p.grupo === g).map(p => Object.assign(p, { dispositivo: !!(p.correo && props.getProperty('d:' + p.correo)) })),
         nominaciones: conteo_('Nominaciones', 4, g),
         nominaron: quienes_('Nominaciones', g),
         votaron: quienes_('Votos', g),
@@ -572,8 +604,11 @@ const ACCIONES = {
     } else {
       const i = filas.findIndex(r => String(r[1]).trim() === nombre && grupo_(r[3], r[4]) === g);
       if (i < 0) throw new Error('No encontramos a esa persona.');
+      const c = normal_(filas[i][0]);
+      if (c) PropertiesService.getScriptProperties().deleteProperty('d:' + c);
       if (req.op === 'quitar') filas.splice(i, 1);
       else if (req.op === 'liberar') filas[i][0] = '';
+      else if (req.op === 'dispositivo') { /* solo libera el dispositivo */ }
       else throw new Error('Operación no válida.');
     }
     escribirFilas_('Equipo', filas.map(r => [r[0], r[1], r[2] || 'si', r[3] || EMPRESA_DEFECTO, r[4] || PAIS_DEFECTO]));

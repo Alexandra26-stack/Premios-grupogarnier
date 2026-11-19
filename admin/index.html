@@ -57,7 +57,7 @@ function renderNav() {
   $('#tabs').innerHTML = S.d ? TABS.map(([id, n], i) => `<button role="tab" aria-selected="${S.tab === id}" data-tab="${id}"><small>${String(i + 1).padStart(2, '0')}</small>${n}</button>`).join('') : '';
   const opts = (list, v) => list.map(n => `<option ${n === v ? 'selected' : ''}>${esc(n)}</option>`).join('');
   $('#filtros').innerHTML = S.d ? `<label for="selEmpresa">Empresa<select id="selEmpresa">${opts(S.d.empresas, S.empresa)}</select></label><label for="selPais">País<select id="selPais">${opts(S.d.paises, S.pais)}</select></label>` : '';
-  $('#whoBox').innerHTML = S.d ? `<em>Administración</em><span>Grupo Garnier</span><br><a class="link" href="../${CQ}" target="_blank" rel="noopener">Ver la página de participantes</a><br><button type="button" class="link" data-act="salir">Salir</button>` : '<em>Premios 2026</em><span>Administración</span>';
+  $('#whoBox').innerHTML = S.d ? `<em>Administración</em><span>Grupo Garnier</span><br><a class="link" href="../${CQ}" target="_blank" rel="noopener">Vista de participante</a><br><button type="button" class="link" data-act="salir">Salir</button>` : '<em>Premios 2026</em><span>Administración</span>';
 }
 
 function loginView(err = '') {
@@ -119,9 +119,10 @@ const V = {
       <section class="card"><h3>Cargar varias personas</h3><p class="sub">Pega una persona por línea: correo, nombre. También puedes poner solo el nombre: esa persona elegirá su nombre al entrar con su correo.</p>
         <form id="fVarias" style="display:grid;gap:12px"><label class="sr-only" for="varias">Personas</label><textarea id="varias" rows="6" placeholder="ana.perez@empresa.com, Ana Pérez&#10;juan.gomez@empresa.com, Juan Gómez" required></textarea>
         <div class="row"><button class="btn" type="submit">Cargar personas</button></div></form></section>
-      <section class="card"><div class="list">${d.equipo.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(p => `<div class="li">${avatar(p.nombre, 40)}<span><b>${esc(p.nombre)}</b><small>${p.correo ? esc(p.correo) : 'Sin correo: lo registra al entrar'} · ${d.nominaron[p.correo] ? 'propuso' : 'no ha propuesto'} · ${d.votaron[p.correo] ? 'votó' : 'no ha votado'}</small></span>
+      <section class="card"><div class="list">${d.equipo.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')).map(p => `<div class="li">${avatar(p.nombre, 40)}<span><b>${esc(p.nombre)}</b><small>${p.correo ? esc(p.correo) : 'Sin correo: lo registra al entrar'}${p.dispositivo ? ' · con dispositivo' : ''} · ${d.nominaron[p.correo] ? 'propuso' : 'no ha propuesto'} · ${d.votaron[p.correo] ? 'votó' : 'no ha votado'}</small></span>
         <span class="row">${d.nominaron[p.correo] ? `<button class="link" data-act="borrar" data-tipo="nominaciones" data-correo="${esc(p.correo)}">${S.confirm === 'borrar:nominaciones:' + p.correo ? 'Confirmar' : 'Dejar proponer de nuevo'}</button>` : ''}
         ${d.votaron[p.correo] ? `<button class="link" data-act="borrar" data-tipo="votos" data-correo="${esc(p.correo)}">${S.confirm === 'borrar:votos:' + p.correo ? 'Confirmar' : 'Dejar votar de nuevo'}</button>` : ''}
+        ${p.dispositivo ? `<button class="link" data-act="disp" data-nombre="${esc(p.nombre)}">${S.confirm === 'disp:' + p.nombre ? 'Confirmar' : 'Liberar dispositivo'}</button>` : ''}
         ${p.correo ? `<button class="link" data-act="liberar" data-nombre="${esc(p.nombre)}">${S.confirm === 'liberar:' + p.nombre ? 'Confirmar' : 'Quitar correo'}</button>` : ''}
         <button class="link danger" data-act="quitar" data-nombre="${esc(p.nombre)}">${S.confirm === 'quitar:' + p.nombre ? 'Confirmar' : 'Quitar'}</button></span></div>`).join('')}</div></section>`;
   },
@@ -211,6 +212,7 @@ document.addEventListener('click', e => {
   if (a === 'revelar' && confirmar('revelar')) return accion('adminRevelar', { revelar: !S.d.revelado }, S.d.revelado ? 'Ganadores ocultos' : 'Ganadores visibles para este equipo');
   const nm = t.dataset.nombre;
   if (a === 'quitar' && confirmar('quitar:' + nm)) return accion('adminPersona', { op: 'quitar', nombre: nm }, 'Persona quitada');
+  if (a === 'disp' && confirmar('disp:' + nm)) return accion('adminPersona', { op: 'dispositivo', nombre: nm }, 'Dispositivo liberado: puede entrar desde otro equipo');
   if (a === 'liberar' && confirmar('liberar:' + nm)) return accion('adminPersona', { op: 'liberar', nombre: nm }, 'Correo quitado: la persona puede registrarse de nuevo');
   if (a === 'borrar' && confirmar(`borrar:${t.dataset.tipo}:${c}`)) return accion('adminBorrarRespuesta', { tipo: t.dataset.tipo, correo: c }, 'Listo: puede enviar de nuevo');
   if (a === 'activar') return accion('adminCategoria', { op: 'activar', id: t.dataset.id, activa: t.dataset.v === '1' }, 'Categoría actualizada');
