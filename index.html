@@ -50,6 +50,10 @@ const LUGAR_BASE = 'Grupo Garnier';
 const lugar = () => S.me ? `${S.me.empresa} · ${S.me.pais}` : LUGAR_BASE;
 document.title = 'Premios de Fin de Año 2026 · Grupo Garnier';
 
+function dispositivo() {
+  try { let d = localStorage.getItem('premios-dispositivo'); if (!d) { d = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()); localStorage.setItem('premios-dispositivo', d); } return d; }
+  catch { return 'sin-almacenamiento'; }
+}
 function sesion() { try { const s = JSON.parse(localStorage.getItem(TK)); return s && s.exp > Date.now() ? s : null; } catch { return null; } }
 function guardarSesion(token) { try { localStorage.setItem(TK, JSON.stringify({ token, exp: Date.now() + 14 * 864e5 })); } catch {} }
 function salir() { try { localStorage.removeItem(TK); } catch {} S.me = null; S.draftNom = {}; S.draftVote = {}; render(); }
@@ -92,15 +96,16 @@ function loginView() {
 }
 
 const cats = () => S.pub.categorias;
+const demoBanner = () => `<div class="banner info">Modo demostración: puedes proponer, votar y ver ganadores de ejemplo. Nada de lo que hagas se guarda ni cuenta en los resultados.</div>`;
 
 function nominarView() {
   if (!S.me) return loginView();
   const p = S.pub, sent = !!S.me.propuestasEn;
-  const open = p.fase === 'nom';
+  const open = p.fase === 'nom' || S.me.demo;
   const picks = sent ? S.me.propuestas : S.draftNom;
   const locked = sent || !open;
   const done = cats().filter(c => picks[c.id]?.p).length;
-  const notice = sent ? `<div class="banner info">Ya enviaste tus propuestas el ${fmtFecha(S.me.propuestasEn)}. Quedaron registradas y no se pueden cambiar.</div>`
+  const notice = S.me.demo ? demoBanner() : sent ? `<div class="banner info">Ya enviaste tus propuestas el ${fmtFecha(S.me.propuestasEn)}. Quedaron registradas y no se pueden cambiar.</div>`
     : open ? '' : `<div class="banner">Las propuestas van del ${fmt(p.fechas.nom[0])} al ${fmt(p.fechas.nom[1])}. ${p.fase === 'prep' ? 'Podrás proponer cuando abra la fase.' : 'Esta fase ya cerró.'}</div>`;
   return notice + `<div class="tiles">${cats().map(c => {
     const pk = picks[c.id];
@@ -125,11 +130,11 @@ function votarView() {
         <div class="finals">${[1, 2].map(() => `<div class="person blank" aria-hidden="true"><span class="av empty" style="--s:56px">?</span><span>Por revelar</span></div>`).join('')}</div>
       </div></article>`).join('')}</div>`;
   }
-  const sent = !!S.me.votoEn, open = p.fase === 'vot', locked = sent || !open;
+  const sent = !!S.me.votoEn, open = p.fase === 'vot' || S.me.demo, locked = sent || !open;
   const picks = sent ? S.me.votos : S.draftVote, who = S.me.nombre;
   const list = cats().filter(c => (fin[c.id] || []).length);
   const done = list.filter(c => picks[c.id]).length;
-  const notice = sent ? `<div class="banner info">Ya enviaste tu voto el ${fmtFecha(S.me.votoEn)}. Quedó registrado y no se puede cambiar.</div>`
+  const notice = S.me.demo ? demoBanner() : sent ? `<div class="banner info">Ya enviaste tu voto el ${fmtFecha(S.me.votoEn)}. Quedó registrado y no se puede cambiar.</div>`
     : open ? '' : `<div class="banner">La votación fue del ${fmt(p.fechas.vot[0])} al ${fmt(p.fechas.vot[1])}.</div>`;
   return notice + `<div class="tiles wide">${list.map(c => `<article class="tile"><div class="clap" aria-hidden="true"></div><div class="tile-body">
       <div class="row" style="gap:14px;flex-wrap:nowrap"><div class="ico sm">${catIcon(c.id)}</div><div><h4>${esc(c.nombre)}</h4><p>${esc(c.desc)}</p></div></div>
@@ -190,7 +195,7 @@ async function cargarYo() {
 async function entrar(datos) {
   S.busy = true; S.error = ''; render();
   try {
-    const r = await api('entrar', { correo: S.correo, clave: S.claveg, empresa: S.empresa, pais: S.pais, ...datos });
+    const r = await api('entrar', { correo: S.correo, clave: S.claveg, empresa: S.empresa, pais: S.pais, dispositivo: dispositivo(), ...datos });
     if (r.elegirGrupo) S.paso = 'grupo';
     else if (r.elegirNombre) { S.paso = 'nombre'; S.libres = r.libres; }
     else { S.paso = null; S.libres = null; S.claveg = ''; guardarSesion(r.token); await cargarYo(); toast(`Hola, ${r.nombre.split(' ')[0]}`); }
@@ -223,8 +228,8 @@ document.addEventListener('click', async e => {
     try {
       const s = sesion();
       if (!s) throw new Error('Tu sesión terminó. Vuelve a ingresar con tu correo.');
-      if (act === 'sendnom') await api('nominar', { token: s.token, picks: S.draftNom });
-      else await api('votar', { token: s.token, picks: S.draftVote });
+      const r = act === 'sendnom' ? await api('nominar', { token: s.token, picks: S.draftNom }) : await api('votar', { token: s.token, picks: S.draftVote });
+      if (r.demo) { toast('Modo demostración: así se enviaría. No se guardó nada.'); S.busy = false; render(); return; }
       await cargarYo();
       toast(act === 'sendnom' ? '¡Gracias! Tus propuestas quedaron guardadas' : '¡Listo! Tu voto quedó registrado');
     } catch (err) {
