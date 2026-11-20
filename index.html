@@ -63,6 +63,8 @@
 <script src="assets/companias.js"></script>
 <script src="assets/comun.js"></script>
 <script>
+// Cambia a true cuando la fecha de la ceremonia esté confirmada (se toma de Fechas en el admin).
+const CEREMONIA_CONFIRMADA = false;
 const TABS = [['nominar', 'Proponer'], ['votar', 'Votar'], ['ganadores', 'Ganadores']];
 const S = { pub: null, me: null, tab: 'nominar', correo: '', draftNom: {}, draftVote: {}, confirm: null, busy: false, error: '' };
 const TK = CKEY('premios-sesion');
@@ -91,7 +93,7 @@ function hero() {
   return `<section class="hero mini"><div class="copy"><span class="eyebrow">${esc(lugar())}</span>
     <h1>Premios de Fin de Año <span>2026</span></h1><div class="rule"></div>
     <p class="sub">${sub} Tus respuestas son confidenciales.</p></div>
-    <div class="count"><span class="n">${days}</span><span class="l">${days === 1 ? 'día' : 'días'} para la ceremonia</span><span class="d">${fmt(cer)} de 2026</span><span class="phase-now">${p.fase === 'cerrado' ? faseNombre(p.fase) : 'Fase actual: ' + faseNombre(p.fase)}</span></div></section>`;
+    <div class="count">${CEREMONIA_CONFIRMADA ? `<span class="n">${days}</span><span class="l">${days === 1 ? 'día' : 'días'} para la ceremonia</span><span class="d">${fmt(cer)} de 2026</span>` : `<span class="n" style="font-size:44px;line-height:1.05">Por<br>confirmar</span><span class="l">fecha de la ceremonia</span>`}<span class="phase-now">${p.fase === 'cerrado' ? faseNombre(p.fase) : 'Fase actual: ' + faseNombre(p.fase)}</span></div></section>`;
 }
 
 function loginView() {
@@ -169,7 +171,7 @@ function votarView() {
 function ganadoresView() {
   if (!S.me) return loginView();
   const g = S.me.ganadores;
-  if (!g || !Object.keys(g).length) return `<div class="card"><div class="empty">Los ganadores se revelan en la ceremonia del ${fmt(S.pub.fechas.cer[0])}.</div></div>`;
+  if (!g || !Object.keys(g).length) return `<div class="card"><div class="empty">Los ganadores se revelan en la ceremonia${CEREMONIA_CONFIRMADA ? ' del ' + fmt(S.pub.fechas.cer[0]) : ' (fecha por confirmar)'}.</div></div>`;
   const crown = `<svg class="crown" width="54" height="40" viewBox="0 0 54 40" aria-hidden="true"><path d="M5 34 2 10l13 10L27 2l12 18 13-10-3 24z" fill="#f2b233" stroke="#b07a1c" stroke-width="2" stroke-linejoin="round"/><circle cx="2" cy="10" r="3" fill="#fff3c4"/><circle cx="27" cy="2" r="3" fill="#fff3c4"/><circle cx="52" cy="10" r="3" fill="#fff3c4"/><rect x="5" y="31" width="44" height="6" rx="2" fill="#d4a24c"/></svg>`;
   const lista = cats().filter(c => g[c.id]);
   return (S.me.demo ? demoBanner() : '') + `<section class="card"><div class="galahead"><h3>Ganadores 2026</h3><p class="sub">${esc(lugar())} · ¡Felicitaciones a todos!</p></div>
