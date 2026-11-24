@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Premios de Fin de Año 2026</title>
+<title>Reconocimientos de Fin de Año 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap" rel="stylesheet">
@@ -46,7 +46,7 @@
   <nav class="nav" role="tablist" id="tabs" aria-label="Secciones"></nav>
   <div class="who" id="whoBox"></div>
 </aside>
-<main id="main"><div class="empty loading">Cargando los premios…</div></main>
+<main id="main"><div class="empty loading">Cargando los reconocimientos…</div></main>
 
 <div class="modal picker" id="picker" role="dialog" aria-modal="true" aria-labelledby="pTitle">
   <div class="box">
@@ -71,7 +71,7 @@ const S = { pub: null, me: null, tab: 'nominar', correo: '', draftNom: {}, draft
 const TK = CKEY('premios-sesion');
 const LUGAR_BASE = 'Grupo Garnier';
 const lugar = () => S.me ? `${S.me.empresa} · ${S.me.pais}` : LUGAR_BASE;
-document.title = 'Premios de Fin de Año 2026 · Grupo Garnier';
+document.title = 'Reconocimientos de Fin de Año 2026 · Grupo Garnier';
 
 function dispositivo() {
   try { let d = localStorage.getItem('premios-dispositivo'); if (!d) { d = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now()); localStorage.setItem('premios-dispositivo', d); } return d; }
@@ -84,7 +84,7 @@ function salir() { try { localStorage.removeItem(TK); } catch {} S.me = null; S.
 /* ---------- Render ---------- */
 function renderNav() {
   $('#tabs').innerHTML = TABS.map(([id, n], i) => `<button role="tab" id="tab-${id}" aria-selected="${S.tab === id}" data-tab="${id}"><small>${String(i + 1).padStart(2, '0')}</small>${n}</button>`).join('');
-  $('#whoBox').innerHTML = S.me ? `<em>Ingresaste como</em><span>${esc(S.me.nombre)}</span><em>${esc(lugar())}</em><button type="button" class="link" data-act="salir">Salir</button>` : `<em>Premios 2026</em><span>${esc(LUGAR_BASE)}</span>`;
+  $('#whoBox').innerHTML = S.me ? `<em>Ingresaste como</em><span>${esc(S.me.nombre)}</span><em>${esc(lugar())}</em><button type="button" class="link" data-act="salir">Salir</button>` : `<em>Reconocimientos 2026</em><span>${esc(LUGAR_BASE)}</span>`;
 }
 
 function hero() {
@@ -92,7 +92,7 @@ function hero() {
   const days = Math.max(0, Math.round((Date.parse(cer) - Date.parse(hoy())) / 864e5));
   const sub = { nominar: 'Propón a tus compañeros en cada categoría. Revisa bien antes de enviar: una vez enviadas no se pueden cambiar.', votar: 'Elige a uno de los 2 finalistas de cada categoría. Una vez enviado, tu voto no se puede cambiar.', ganadores: 'Los ganadores de este año.' }[S.tab];
   return `<section class="hero mini"><div class="copy"><span class="eyebrow">${esc(lugar())}</span>
-    <h1>Premios de Fin de Año <span>2026</span></h1><div class="rule"></div>
+    <h1>Reconocimientos de Fin de Año <span>2026</span></h1><div class="rule"></div>
     <p class="sub">${sub} Tus respuestas son confidenciales.</p></div>
     <div class="count">${CEREMONIA_CONFIRMADA ? `<span class="n">${days}</span><span class="l">${days === 1 ? 'día' : 'días'} para la ceremonia</span><span class="d">${fmt(cer)} de 2026</span>` : `<span class="n" style="font-size:44px;line-height:1.05">Por<br>confirmar</span><span class="l">fecha de la ceremonia</span>`}<span class="phase-now">${p.fase === 'cerrado' ? faseNombre(p.fase) : 'Fase actual: ' + faseNombre(p.fase)}</span></div></section>`;
 }
@@ -112,7 +112,7 @@ function loginView() {
     <button class="btn" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Entrando…' : 'Soy yo, entrar'}</button></form>
     <div class="row"><button type="button" class="link" data-act="atras">Cambiar empresa o país</button></div></section>`;
   return err + `<section class="card login">${icon}
-    <h3>Ingresa a los premios</h3><p class="sub">Escribe tu correo y la clave del grupo que te compartió Talento Humano. Así nadie puede proponerse ni votarse a sí mismo.</p>
+    <h3>Ingresa a los reconocimientos</h3><p class="sub">Escribe tu correo y la clave del grupo que te compartió Talento Humano. Así nadie puede proponerse ni votarse a sí mismo.</p>
     <form id="fCorreo"><label class="sr-only" for="correo">Correo</label><input class="inp" id="correo" type="email" autocomplete="email" placeholder="tucorreo@empresa.com" value="${esc(S.correo)}" required>
     <label class="sr-only" for="claveg">Clave del grupo</label><input class="inp" id="claveg" type="password" autocomplete="current-password" placeholder="Clave del grupo" required>
     <button class="btn" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Entrando…' : 'Entrar'}</button></form></section>`;
