@@ -64,7 +64,8 @@
 <script src="assets/comun.js"></script>
 <script>
 // Cambia a true cuando la fecha de la ceremonia esté confirmada (se toma de Fechas en el admin).
-const CEREMONIA_CONFIRMADA = false;
+const CEREMONIA_CONFIRMADA = true;
+const CEREMONIA_FECHA = '2026-12-10';
 const TABS = [['nominar', 'Proponer'], ['votar', 'Votar'], ['ganadores', 'Ganadores']];
 const S = { pub: null, me: null, tab: 'nominar', correo: '', draftNom: {}, draftVote: {}, confirm: null, busy: false, error: '' };
 const TK = CKEY('premios-sesion');
@@ -87,7 +88,7 @@ function renderNav() {
 }
 
 function hero() {
-  const p = S.pub, cer = p.fechas.cer[0];
+  const p = S.pub, cer = CEREMONIA_FECHA;
   const days = Math.max(0, Math.round((Date.parse(cer) - Date.parse(hoy())) / 864e5));
   const sub = { nominar: 'Propón a tus compañeros en cada categoría. Revisa bien antes de enviar: una vez enviadas no se pueden cambiar.', votar: 'Elige a uno de los 2 finalistas de cada categoría. Una vez enviado, tu voto no se puede cambiar.', ganadores: 'Los ganadores de este año.' }[S.tab];
   return `<section class="hero mini"><div class="copy"><span class="eyebrow">${esc(lugar())}</span>
@@ -171,7 +172,7 @@ function votarView() {
 function ganadoresView() {
   if (!S.me) return loginView();
   const g = S.me.ganadores;
-  if (!g || !Object.keys(g).length) return `<div class="card"><div class="empty">Los ganadores se revelan en la ceremonia${CEREMONIA_CONFIRMADA ? ' del ' + fmt(S.pub.fechas.cer[0]) : ' (fecha por confirmar)'}.</div></div>`;
+  if (!g || !Object.keys(g).length) return `<div class="card"><div class="empty">Los ganadores se revelan en la ceremonia${CEREMONIA_CONFIRMADA ? ' del ' + fmt(CEREMONIA_FECHA) : ' (fecha por confirmar)'}.</div></div>`;
   const crown = `<svg class="crown" width="54" height="40" viewBox="0 0 54 40" aria-hidden="true"><path d="M5 34 2 10l13 10L27 2l12 18 13-10-3 24z" fill="#f2b233" stroke="#b07a1c" stroke-width="2" stroke-linejoin="round"/><circle cx="2" cy="10" r="3" fill="#fff3c4"/><circle cx="27" cy="2" r="3" fill="#fff3c4"/><circle cx="52" cy="10" r="3" fill="#fff3c4"/><rect x="5" y="31" width="44" height="6" rx="2" fill="#d4a24c"/></svg>`;
   const lista = cats().filter(c => g[c.id]);
   return (S.me.demo ? demoBanner() : '') + `<section class="card"><div class="galahead"><h3>Ganadores 2026</h3><p class="sub">${esc(lugar())} · ¡Felicitaciones a todos!</p></div>
